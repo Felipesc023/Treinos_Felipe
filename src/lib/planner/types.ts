@@ -5,6 +5,21 @@ export type WorkoutType =
   | 'academia_inferior' | 'academia_superior'
   | 'prova' | 'descanso' | 'externo';
 
+/** Estrutura de um treino de corrida (km, tiros, tempo contínuo…), para o detalhe e a comparação com o realizado. */
+export interface SessionSpec {
+  /** Distância total estimada (inclui aquecimento/desaquecimento nos treinos de qualidade). */
+  km?: number;
+  reps?: number; repM?: number; recM?: number;
+  zone?: 'rep400' | 'rep600' | 'rep800' | 'rep1000';
+  /** Minutos contínuos em ritmo de tempo. */
+  steadyMin?: number;
+  /** Aceleradas de 100 m no fim do leve. */
+  strides?: number;
+  /** Longão com final em ritmo mais forte. */
+  progressive?: boolean;
+  fartlekMin?: number;
+}
+
 export interface PlannedWorkout {
   date: ISODate;
   type: WorkoutType;
@@ -16,6 +31,7 @@ export interface PlannedWorkout {
   estMinutes: number;
   rationale: string;
   reduced?: boolean;
+  spec?: SessionSpec;
 }
 
 /** Disponibilidade por dia da semana (0 = domingo). */
@@ -43,6 +59,9 @@ export interface SessionRequest {
   preferredWeekday: number;
   /** Pode virar versão reduzida (×preEventVolumeFactor) se não couber inteira. */
   reducible?: boolean;
+  /** Não pode cair antes desta data (reencaixe de treino perdido). */
+  notBefore?: ISODate;
+  spec?: SessionSpec;
   rationale: string;
 }
 

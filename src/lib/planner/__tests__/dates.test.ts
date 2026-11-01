@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, diffDays, isValidISODate, weekdayName, weekdayOf, weekStartSunday, weeksUntil } from '../dates';
+import { addDays, diffDays, isValidISODate, weekdayName, weekdayOf, weekStartSunday } from '../dates';
 
 describe('datas (T1: dia da semana é derivado, nunca digitado)', () => {
   it('2026-10-20 é terça-feira', () => {
@@ -20,9 +20,6 @@ describe('datas (T1: dia da semana é derivado, nunca digitado)', () => {
   it('domingo da semana', () => {
     expect(weekStartSunday('2026-10-21')).toBe('2026-10-18');
     expect(weekStartSunday('2026-10-18')).toBe('2026-10-18');
-  });
-  it('semanas até a prova (55 dias = 8 semanas)', () => {
-    expect(weeksUntil('2026-09-21', '2026-11-15')).toBe(8);
   });
   it('rejeita datas inválidas', () => {
     expect(isValidISODate('2026-02-30')).toBe(false);

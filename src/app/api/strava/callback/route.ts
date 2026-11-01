@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     await connectWithCode(code, p.get('scope'));
     return dest('ok');
-  } catch {
+  } catch (e) {
+    console.error('strava callback:', e);
     return dest('erro');
   }
 }

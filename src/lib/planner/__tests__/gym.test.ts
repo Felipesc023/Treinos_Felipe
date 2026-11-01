@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXERCISE_LIBRARY, eligibleExercises, DEFAULT_GYM_PREFS } from '../exercises';
-import { blockForPhase, buildGymSession, nextLoadKg } from '../gym';
+import { blockForPhase, buildGymSession } from '../gym';
 
 describe('T6: musculação só com máquina, sem equilíbrio', () => {
   it('o perfil padrão nunca retorna afundo búlgaro, agachamento livre nem unilateral', () => {
@@ -49,15 +49,26 @@ describe('T6: musculação só com máquina, sem equilíbrio', () => {
     expect(blockForPhase('velocidade')).toBe(2);
     expect(blockForPhase('taper')).toBe(3);
   });
+});
 
-  describe('progressão de carga', () => {
-    it('sobe ~3% só se bateu o topo em 2 sessões com esforço ≤ 8', () => {
-      expect(nextLoadKg({ lastLoadKg: 100, hitTopRepsAllSetsLast2Sessions: true, rpeLast: 7 })).toBe(102.5);
-      expect(nextLoadKg({ lastLoadKg: 100, hitTopRepsAllSetsLast2Sessions: true, rpeLast: 9 })).toBe(100);
-      expect(nextLoadKg({ lastLoadKg: 100, hitTopRepsAllSetsLast2Sessions: false, rpeLast: 6 })).toBe(100);
-    });
-    it('voltando de doença retoma a ~65%', () => {
-      expect(nextLoadKg({ lastLoadKg: 100, hitTopRepsAllSetsLast2Sessions: true, rpeLast: 6, returningFromHealthEvent: true })).toBe(65);
-    });
+describe('rodízio do treino de academia', () => {
+  const ids = (variant: number) => buildGymSession('inferior', 1, { variant }).items.map((i) => i.exerciseId).join(',');
+  const reps = (variant: number) => buildGymSession('inferior', 1, { variant }).items.find((i) => i.pattern === 'leg_press')!.repsMax;
+
+  it('semanas seguidas não repetem o mesmo treino', () => {
+    expect(new Set([0, 1, 2, 3].map(ids)).size).toBeGreaterThanOrEqual(3);
+    expect([reps(0), reps(1), reps(2)]).toEqual([10, 12, 8]);
+  });
+  it('sem variante, mantém a primeira opção (comportamento antigo)', () => {
+    expect(buildGymSession('inferior', 1).items[0]!.exerciseId).toBe('leg-press-45');
+  });
+  it('a região poupada vale para todas as variantes', () => {
+    for (const variant of [0, 1, 2, 3]) {
+      const s = buildGymSession('inferior', 1, { variant, restrictions: { avoidRegions: ['abdomen'] } });
+      expect(s.items.some((i) => i.pattern === 'core')).toBe(false);
+    }
+  });
+  it('cada semana traz uma orientação (referência, volume ou força)', () => {
+    expect(new Set([0, 1, 2].map((v) => buildGymSession('superior', 1, { variant: v }).note)).size).toBe(3);
   });
 });

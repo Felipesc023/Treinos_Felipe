@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
 
+// Mesmas fontes do layout, servidas localmente (sem pedir nada ao Google).
+const inter = localFont({ src: './fonts/inter.woff2', weight: '400 700', variable: '--font-sans', display: 'swap' });
+const barlow = localFont({ src: './fonts/barlow-condensed-700.woff2', weight: '700', variable: '--font-display', display: 'swap' });
+
 export const metadata: Metadata = { title: 'Hybrid Run', description: 'Treino híbrido: corrida + musculação' };
-export const viewport: Viewport = { themeColor: '#11141C', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#F4F3EF', width: 'device-width', initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${inter.variable} ${barlow.variable}`}>
       <body className="font-sans">{children}</body>
     </html>
   );

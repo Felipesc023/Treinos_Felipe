@@ -1,6 +1,7 @@
 import { DEFAULT_CONFIG, type PlannerConfig } from './config';
 import { addDays, weekDates, weekdayOf, weekdayName, type ISODate } from './dates';
 import { validatePlan } from './rules';
+import { scaleSpec } from './spec';
 import type {
   DayTemplate, DroppedSession, HealthRestriction, PlannedWorkout, SessionRequest, Violation,
 } from './types';
@@ -53,12 +54,13 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       ? `${req.rationale} Volume reduzido (×${cfg.preEventVolumeFactor}) para respeitar a recuperação.`
       : req.rationale,
     ...(reduced ? { reduced: true } : {}),
+    ...(req.spec ? { spec: reduced ? scaleSpec(req.spec, cfg.preEventVolumeFactor) : req.spec } : {}),
   });
 
   /** Dias candidatos: dentro de ±maxShiftDays do dia preferido, na própria semana. */
   const candidateDays = (req: SessionRequest): ISODate[] =>
     days
-      .filter((d) => Math.abs(weekdayOf(d) - req.preferredWeekday) <= cfg.maxShiftDays)
+      .filter((d) => Math.abs(weekdayOf(d) - req.preferredWeekday) <= cfg.maxShiftDays && (!req.notBefore || d >= req.notBefore))
       .sort((a, b) =>
         Math.abs(weekdayOf(a) - req.preferredWeekday) - Math.abs(weekdayOf(b) - req.preferredWeekday)
         || a.localeCompare(b));
@@ -160,5 +162,7 @@ export function makeRequest(
     estMinutes: extra.estMinutes ?? d.estMinutes,
     reducible: extra.reducible ?? (type === 'intervalado' || type === 'tempo'),
     rationale: extra.rationale ?? '',
+    ...(extra.spec ? { spec: extra.spec } : {}),
+    ...(extra.notBefore ? { notBefore: extra.notBefore } : {}),
   };
 }

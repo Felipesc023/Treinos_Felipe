@@ -16,6 +16,22 @@ export interface PlannerConfig {
   maxImprovementPerCycle: number;
   taperWeeks: Record<number, number>;
   baseShare: Record<number, number>;
+  /** Retomada após afastamento: volume inicial, passo semanal e duração (1 semana a cada N dias parados). */
+  returnStartFactor: number;
+  returnWeeklyStep: number;
+  returnMinWeeks: number;
+  returnMaxWeeks: number;
+  returnDaysPerWeek: number;
+  /** Intensidade máxima com dor em modo "seguir com restrição". */
+  restrictedMaxIntensity: number;
+  /** Treinos perdidos: a partir de N na janela de D dias, o volume das 2 próximas semanas cai para o fator. */
+  missedManyThreshold: number;
+  missedManyWindowDays: number;
+  missedManyFactor: number;
+  /** Sem prova cadastrada: semanas de plano de manutenção além do último afastamento. */
+  maintenanceHorizonWeeks: number;
+  /** Dias, depois do fim de um afastamento/dor, em que a academia ainda evita a região afetada. */
+  regionAvoidAfterDays: number;
 }
 
 export const DEFAULT_CONFIG: PlannerConfig = {
@@ -29,4 +45,15 @@ export const DEFAULT_CONFIG: PlannerConfig = {
   maxImprovementPerCycle: 0.06,
   taperWeeks: { 5000: 1, 10000: 1, 21097: 2, 42195: 3 },
   baseShare: { 5000: 0.5, 10000: 0.5, 21097: 0.6, 42195: 0.65 },
+  returnStartFactor: 0.5,
+  returnWeeklyStep: 0.1,
+  returnMinWeeks: 2,
+  returnMaxWeeks: 8,
+  returnDaysPerWeek: 14,
+  restrictedMaxIntensity: 2,
+  missedManyThreshold: 3,
+  missedManyWindowDays: 14,
+  missedManyFactor: 0.85,
+  maintenanceHorizonWeeks: 4,
+  regionAvoidAfterDays: 21,
 };

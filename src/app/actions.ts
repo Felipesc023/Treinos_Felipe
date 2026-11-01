@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { COOKIE, makeSession, safeEqual } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
-import { isValidISODate, parseTime } from '@/lib/planner';
+import { healthEventSchema } from '@/lib/health';
+import { addDays, isValidISODate, parseTime } from '@/lib/planner';
 import { backfill } from '@/lib/strava';
 import { todayISO } from '@/lib/today';
 
@@ -36,7 +37,9 @@ const raceSchema = z.object({
 });
 
 export async function createRace(form: FormData) {
-  const raw = Object.fromEntries(form);
+  const raw: Record<string, FormDataEntryValue> = Object.fromEntries(form);
+  const custom = String(raw.km_custom ?? '').replace(',', '.').trim();
+  if (custom) raw.distance_m = String(Math.round(Number(custom) * 1000)); // "outra distância" vale no lugar do chip
   const parsed = raceSchema.parse(raw);
   const goal = String(raw.goal_time ?? '').trim();
   const goal_time_seconds = goal ? parseTime(goal) : null;
@@ -52,7 +55,7 @@ export async function deleteRace(form: FormData) {
 }
 
 export async function addPr(form: FormData) {
-  const distance_m = z.coerce.number().int().positive().parse(form.get('distance_m'));
+  const distance_m = Math.round(z.coerce.number().min(0.4).max(200).parse(String(form.get('km')).replace(',', '.')) * 1000);
   const time_seconds = parseTime(String(form.get('time') ?? ''));
   if (!time_seconds) throw new Error('Tempo inválido (use mm:ss).');
   const { error } = await db().from('personal_records').insert({ distance_m, time_seconds, achieved_on: todayISO() });
@@ -66,6 +69,110 @@ export async function deletePr(form: FormData) {
 }
 
 export async function syncStrava() {
-  await backfill(60);
+  await backfill();
+  revalidatePath('/', 'layout');
+}
+
+export async function confirmHealthEvent(form: FormData) {
+  const e = healthEventSchema.parse(Object.fromEntries(form));
+  const { error } = await db().from('health_events').insert({
+    kind: e.kind, mode: e.mode, body_region: e.region ?? null, severity: e.severity ?? null,
+    started_on: e.from, expected_end_on: e.to, status: 'ativo',
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath('/', 'layout');
+  redirect('/calendario');
+}
+
+/** "Estou liberado/recuperado": o último dia afastado passa a ser ontem, e a retomada começa hoje. */
+export async function endHealthEvent(form: FormData) {
+  const id = z.string().uuid().parse(form.get('id'));
+  const { error } = await db().from('health_events').update({ ended_on: addDays(todayISO(), -1), status: 'resolvido' }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/', 'layout');
+}
+
+const skipSchema = z.object({
+  date: z.string().refine(isValidISODate),
+  type: z.enum(['leve', 'longao', 'intervalado', 'tempo', 'ativacao', 'academia_inferior', 'academia_superior']),
+  reason: z.enum(['sem_tempo', 'dor', 'doenca']),
+});
+
+/** Idempotente: marcar duas vezes o mesmo treino não duplica. */
+export async function skipWorkout(form: FormData) {
+  const s = skipSchema.parse(Object.fromEntries(form));
+  const { error } = await db().from('skipped_workouts')
+    .upsert({ skipped_on: s.date, workout_type: s.type, reason: s.reason }, { onConflict: 'skipped_on,workout_type', ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+  revalidatePath('/', 'layout');
+}
+
+const OTHER = {
+  leve: ['Corrida leve', 'Run'], forte: ['Corrida forte', 'Run'], futebol: ['Futebol', 'Soccer'], quadra: ['Esporte de quadra', 'Volleyball'],
+  bike: ['Bicicleta', 'Ride'], natacao: ['Natação', 'Swim'], academia: ['Academia', 'WeightTraining'], nada: null,
+} as const;
+const otherSchema = z.object({
+  date: z.string().refine(isValidISODate),
+  type: skipSchema.shape.type.or(z.literal('descanso')),
+  kind: z.enum(Object.keys(OTHER) as [keyof typeof OTHER, ...(keyof typeof OTHER)[]]),
+  minutes: z.coerce.number().int().min(5).max(300).default(45),
+});
+
+/** "Fiz outra coisa": o treino planejado conta como não feito (o plano se reencaixa) e a atividade entra na carga dos próximos dias. */
+export async function didOther(form: FormData) {
+  const o = otherSchema.parse(Object.fromEntries(form));
+  const sb = db();
+  if (o.type !== 'descanso') {
+    const { error } = await sb.from('skipped_workouts')
+      .upsert({ skipped_on: o.date, workout_type: o.type, reason: 'sem_tempo' }, { onConflict: 'skipped_on,workout_type', ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+  }
+  const what = OTHER[o.kind];
+  if (what) {
+    const { error } = await sb.from('workout_executions').upsert(
+      { executed_on: o.date, source: 'manual', external_id: `${o.date}-outro`, name: `Outra: ${what[0]}`, sport: what[1], duration_s: o.minutes * 60 },
+      { onConflict: 'source,external_id' },
+    );
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath('/', 'layout');
+}
+
+/** Desfaz o que foi marcado à mão no dia ("fiz", "não fiz" ou "outra coisa"); o Strava não é tocado. */
+export async function clearDay(form: FormData) {
+  const s = otherSchema.pick({ date: true, type: true }).parse(Object.fromEntries(form));
+  const sb = db();
+  await sb.from('skipped_workouts').delete().eq('skipped_on', s.date).eq('workout_type', s.type);
+  await sb.from('workout_executions').delete().eq('source', 'manual').in('external_id', [`${s.date}-${s.type}`, `${s.date}-outro`]);
+  revalidatePath('/', 'layout');
+}
+
+const settingsSchema = z.object({
+  runs: z.coerce.number().int().min(1).max(4),
+  gym: z.coerce.number().int().min(0).max(2),
+  rest: z.array(z.coerce.number().int().min(0).max(6)),
+  maxHr: z.preprocess((v) => (v === '' || v == null ? null : v), z.coerce.number().int().min(120).max(230).nullable()),
+});
+
+export async function saveSettings(form: FormData) {
+  const s = settingsSchema.parse({ runs: form.get('runs'), gym: form.get('gym'), rest: form.getAll('rest'), maxHr: form.get('max_hr') });
+  // os treinos precisam caber nos dias livres
+  if (s.runs + s.gym > 7 - new Set(s.rest).size) redirect('/perfil?cfg=erro');
+  const { error } = await db().from('athlete_settings')
+    .upsert({ id: 1, runs_per_week: s.runs, gym_per_week: s.gym, rest_days: [...new Set(s.rest)], max_hr: s.maxHr });
+  if (error) throw new Error(error.message);
+  revalidatePath('/', 'layout');
+  redirect('/perfil?cfg=ok');
+}
+
+/** Marca um treino planejado como feito à mão (útil na academia, que o Strava não traz). Idempotente. */
+export async function markDone(form: FormData) {
+  const s = skipSchema.pick({ date: true, type: true }).parse(Object.fromEntries(form));
+  const gym = s.type.startsWith('academia');
+  const { error } = await db().from('workout_executions').upsert(
+    { executed_on: s.date, source: 'manual', external_id: `${s.date}-${s.type}`, name: gym ? 'Academia' : 'Corrida', sport: gym ? 'WeightTraining' : 'Run' },
+    { onConflict: 'source,external_id', ignoreDuplicates: true },
+  );
+  if (error) throw new Error(error.message);
   revalidatePath('/', 'layout');
 }

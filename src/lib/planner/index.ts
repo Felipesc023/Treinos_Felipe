@@ -7,3 +7,6 @@ export * from './rules';
 export * from './schedule';
 export * from './exercises';
 export * from './gym';
+export * from './recovery';
+export * from './spec';
+export * from './coach';

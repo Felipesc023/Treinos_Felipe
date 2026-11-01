@@ -1,6 +1,7 @@
 import { decrypt, encrypt } from './crypto';
 import { db } from './db';
 import { env } from './env';
+import { stravaPrs, type EffortRow } from './prs';
 
 const API = 'https://www.strava.com/api/v3';
 
@@ -60,18 +61,19 @@ interface Activity {
   id: number; name: string; sport_type?: string; type?: string; start_date_local: string;
   distance: number; moving_time: number; average_heartrate?: number; max_heartrate?: number;
   laps?: { distance: number; moving_time: number; average_heartrate?: number }[];
+  best_efforts?: { name: string; elapsed_time: number }[];
+  calories?: number; // só no detalhe da atividade, não na lista resumida
 }
 
-async function fetchActivity(id: string): Promise<Activity> {
-  const r = await fetch(`${API}/activities/${id}`, { headers: { Authorization: `Bearer ${await accessToken()}` } });
+async function fetchActivity(id: string, token?: string): Promise<Activity> {
+  const r = await fetch(`${API}/activities/${id}`, { headers: { Authorization: `Bearer ${token ?? (await accessToken())}` } });
   if (!r.ok) throw new Error(`Strava atividade ${r.status}`);
   return r.json() as Promise<Activity>;
 }
 
-export async function importActivity(id: string) {
-  const a = await fetchActivity(id);
+const toRow = (a: Activity) => {
   const km = a.distance / 1000;
-  const row = {
+  return {
     executed_on: a.start_date_local.slice(0, 10),
     source: 'strava',
     external_id: String(a.id),
@@ -82,23 +84,77 @@ export async function importActivity(id: string) {
     avg_pace_s_km: km > 0 ? Math.round(a.moving_time / km) : null,
     avg_hr: a.average_heartrate ? Math.round(a.average_heartrate) : null,
     max_hr: a.max_heartrate ? Math.round(a.max_heartrate) : null,
-    laps: a.laps ?? null,
+    ...(a.laps && { laps: a.laps }), // a lista resumida não traz laps nem calorias; não sobrescreve os que já existem
+    ...(a.calories !== undefined && { calories: Math.round(a.calories) }),
   };
-  const { error } = await db().from('workout_executions').upsert(row, { onConflict: 'source,external_id' });
+};
+
+export async function importActivity(id: string) {
+  const { error } = await db().from('workout_executions').upsert(toRow(await fetchActivity(id)), { onConflict: 'source,external_id' });
   if (error) throw new Error(error.message);
   await db().from('integrations').update({ last_synced_at: new Date().toISOString() }).eq('provider', 'strava');
 }
 
-/** Backfill dos últimos N dias (lista resumida → detalhe de cada uma). */
-export async function backfill(days = 60) {
-  const after = Math.floor(Date.now() / 1000) - days * 86_400;
-  const r = await fetch(`${API}/athlete/activities?after=${after}&per_page=50`, {
-    headers: { Authorization: `Bearer ${await accessToken()}` },
-  });
-  if (!r.ok) throw new Error(`Strava lista ${r.status}`);
-  const list = (await r.json()) as { id: number }[];
-  for (const a of list) await importActivity(String(a.id));
-  return list.length;
+/** Busca o detalhe (calorias, e best_efforts + laps nas corridas) das atividades ainda sem ele: 1 chamada cada, então em lotes (limite do Strava: 100/15 min). */
+async function loadEfforts(max: number) {
+  const sb = db();
+  const { data } = await sb.from('workout_executions').select('id,external_id,sport')
+    .eq('source', 'strava').is('calories', null)
+    .order('executed_on', { ascending: false }).limit(max);
+  const rows = data ?? [];
+  if (!rows.length) return;
+  const token = await accessToken();
+  for (let i = 0; i < rows.length; i += 5) {
+    const results = await Promise.allSettled(rows.slice(i, i + 5).map(async (r) => {
+      const a = await fetchActivity(r.external_id, token);
+      await sb.from('workout_executions').update({
+        calories: Math.round(a.calories ?? 0),
+        ...(/run/i.test(r.sport ?? '') && { best_efforts: (a.best_efforts ?? []).map(({ name, elapsed_time }) => ({ name, elapsed_time })) }),
+        ...(a.laps && { laps: a.laps }),
+      }).eq('id', r.id);
+    }));
+    if (results.some((x) => x.status === 'rejected')) break; // limite de taxa: o resto fica para a próxima sync
+  }
+}
+
+/** Recalcula os recordes de origem Strava a partir dos melhores esforços; os manuais (provas) não são tocados. */
+async function refreshPrs() {
+  const sb = db();
+  const { data } = await sb.from('workout_executions').select('executed_on,best_efforts').eq('source', 'strava').not('best_efforts', 'is', null);
+  const prs = stravaPrs((data ?? []) as EffortRow[]);
+  await sb.from('personal_records').delete().eq('source', 'strava');
+  if (prs.length) {
+    const { error } = await sb.from('personal_records').insert(prs.map((p) => ({ ...p, source: 'strava' })));
+    if (error) throw new Error(error.message);
+  }
+}
+
+/** Importa tudo desde `after` (epoch s; 0 = histórico inteiro). Usa a lista resumida: 1 chamada por 200 atividades. */
+export async function backfill(after = 0, maxEfforts = 90) {
+  const headers = { Authorization: `Bearer ${await accessToken()}` };
+  let n = 0;
+  for (let page = 1; ; page++) {
+    const r = await fetch(`${API}/athlete/activities?after=${after}&per_page=200&page=${page}`, { headers });
+    if (!r.ok) throw new Error(`Strava lista ${r.status}`);
+    const list = (await r.json()) as Activity[];
+    if (!list.length) break;
+    const { error } = await db().from('workout_executions').upsert(list.map(toRow), { onConflict: 'source,external_id' });
+    if (error) throw new Error(error.message);
+    n += list.length;
+  }
+  await loadEfforts(maxEfforts);
+  await refreshPrs();
+  await db().from('integrations').update({ last_synced_at: new Date().toISOString() }).eq('provider', 'strava');
+  return n;
+}
+
+/** Sync automático ao abrir o app: incremental, no máx. a cada 15 min. Sem webhook (precisa de URL pública). */
+export async function syncIfStale() {
+  const { data } = await db().from('integrations').select('status,last_synced_at').eq('provider', 'strava').maybeSingle();
+  if (!data || data.status !== 'ativa') return;
+  const last = data.last_synced_at ? new Date(data.last_synced_at).getTime() : 0;
+  if (Date.now() - last < 15 * 60_000) return;
+  await backfill(last ? Math.floor(last / 1000) - 86_400 : 0, 15); // lote pequeno: não travar a abertura da tela
 }
 
 export interface WebhookEvent {

@@ -27,7 +27,9 @@ npm run dev         # http://localhost:3000
 
 ## O site
 
-PIN → **Hoje** (contagem da prova, fase, treino do dia, semana, último treino da Strava) · **Calendário** · **Provas** (cadastro + avaliação da meta) · **Perfil** (recordes, Strava). O plano é calculado na hora a partir da prova A e dos recordes (`src/lib/plan.ts`), sem gravar versões: mudou prova ou recorde, o plano muda.
+Layout "Hybrid Run — MVP" (tema claro, laranja de destaque, Barlow Condensed + Inter servidas localmente). Telas: **Hoje** (treino do dia com passos e ritmos, semana, "fiz"/"não deu", avaliação do feito) · **Calendário** (faixa de fases, tipos por dia, treino planejado × feito com voltas do Strava) · **Provas** · **Perfil** (treinos por semana, dias de descanso, recordes de qualquer distância, Strava) · **Saúde** (afastamento/dor com parte do corpo; a proposta mostra o que muda antes de gravar).
+
+O plano é calculado na hora (`src/lib/plan.ts`) a partir da prova A (ou, sem prova, em modo evolução), dos recordes, do que você já corre no Strava e dos eventos de saúde. O treinador (`src/lib/planner/coach.ts`) varia longão, tiros e academia de semana em semana. Sem PIN: com `APP_PIN` vazio o app abre direto.
 
 ## O que já existe (v0.1 — motor, parte 1)
 
@@ -45,12 +47,11 @@ Os testes reproduzem cenários reais: futebol no sábado (longão descartado), p
 
 ## O que ainda NÃO existe
 
-- `generatePlan`: montar o ciclo inteiro (fases × semanas × volumes de km)
-- Replanejamento: doença/dor, treino perdido, prova nova, edição manual (`proposeReplan`)
-- `evaluateExecution`: planejado × realizado (Strava)
-- Propostas de ajuste com confirmação, botão de doença/dor, planos versionados
-- Tela de treino com cargas, histórico completo, PWA/offline
-- Visual final do Claude Design (as telas atuais seguem o brief, mas são simples)
+- Registro de cargas da academia (o treino varia e é avaliado por frequência, duração e FC, mas não por carga).
+- Dias disponíveis por dia da semana além do descanso, eventos externos (futebol) editáveis.
+- Planos versionados com histórico (a proposta compara o plano com e sem o evento, sem guardar versões).
+- Webhook do Strava em tempo real (precisa do site publicado); localmente a sincronização roda ao abrir o app, no máximo a cada 15 min.
+- PWA/offline.
 
 ## Segurança
 

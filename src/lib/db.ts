@@ -13,4 +13,12 @@ export interface PrRow { id: string; distance_m: number; time_seconds: number; a
 export interface ExecRow {
   id: string; executed_on: string; source: string; name: string | null; sport: string | null;
   distance_m: number | null; duration_s: number | null; avg_pace_s_km: number | null; avg_hr: number | null;
+  max_hr: number | null; laps: unknown; calories?: number | null;
 }
+export interface HealthEventRow {
+  id: string; kind: 'afastamento' | 'dor'; body_region: string | null; severity: number | null;
+  mode: 'seguir_restrito' | 'parar'; started_on: string; expected_end_on: string | null; ended_on: string | null;
+  status: 'ativo' | 'resolvido';
+}
+export interface SkippedRow { id: string; skipped_on: string; workout_type: string; reason: 'sem_tempo' | 'dor' | 'doenca' }
+export interface SettingsRow { runs_per_week: number; gym_per_week: number; rest_days: number[]; max_hr?: number | null }

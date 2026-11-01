@@ -55,11 +55,6 @@ export function weekDates(sunday: ISODate): ISODate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
 }
 
-/** Semanas (arredondadas para cima) entre hoje e a prova. */
-export function weeksUntil(today: ISODate, race: ISODate): number {
-  return Math.max(0, Math.ceil(diffDays(race, today) / 7));
-}
-
 export function isValidISODate(d: string): boolean {
   try { toMs(d); return true; } catch { return false; }
 }

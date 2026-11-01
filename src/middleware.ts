@@ -5,6 +5,7 @@ const PUBLIC = ['/login', '/api/strava/webhook'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (!process.env.APP_PIN) return NextResponse.next(); // sem APP_PIN = sem senha
   if (PUBLIC.some((p) => pathname === p)) return NextResponse.next();
   const ok = await verifySession(req.cookies.get(COOKIE)?.value, process.env.SESSION_SECRET ?? '');
   if (ok) return NextResponse.next();
