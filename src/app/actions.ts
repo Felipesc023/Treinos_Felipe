@@ -151,15 +151,14 @@ const settingsSchema = z.object({
   runs: z.coerce.number().int().min(1).max(4),
   gym: z.coerce.number().int().min(0).max(2),
   rest: z.array(z.coerce.number().int().min(0).max(6)),
-  maxHr: z.preprocess((v) => (v === '' || v == null ? null : v), z.coerce.number().int().min(120).max(230).nullable()),
 });
 
 export async function saveSettings(form: FormData) {
-  const s = settingsSchema.parse({ runs: form.get('runs'), gym: form.get('gym'), rest: form.getAll('rest'), maxHr: form.get('max_hr') });
+  const s = settingsSchema.parse({ runs: form.get('runs'), gym: form.get('gym'), rest: form.getAll('rest') });
   // os treinos precisam caber nos dias livres
   if (s.runs + s.gym > 7 - new Set(s.rest).size) redirect('/perfil?cfg=erro');
   const { error } = await db().from('athlete_settings')
-    .upsert({ id: 1, runs_per_week: s.runs, gym_per_week: s.gym, rest_days: [...new Set(s.rest)], max_hr: s.maxHr });
+    .upsert({ id: 1, runs_per_week: s.runs, gym_per_week: s.gym, rest_days: [...new Set(s.rest)] });
   if (error) throw new Error(error.message);
   revalidatePath('/', 'layout');
   redirect('/perfil?cfg=ok');

@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, addDays, type PlannedWorkout, fitnessFrom, referenceP
 import type { Zones } from '@/lib/evaluate';
 import { generatePlan, templateFrom, type HealthInput, type PlanDay, type PlanResult, type SkippedInput } from '@/lib/plan';
 import { offPlanLoad, substituted } from '@/lib/actual';
+import { estimateMaxHr } from '@/lib/hr';
 import { weekTrend, type Trend } from '@/lib/trend';
 import { missedCandidates } from '@/lib/replan';
 import { todayISO } from '@/lib/today';
@@ -32,7 +33,7 @@ export interface AppState {
   autoSkipped: SkippedInput[];
   /** O que as últimas semanas dizem sobre as próximas (null = pouco dado ou afastado). */
   trend: Trend | null;
-  /** FC máxima em uso: a informada no Perfil ou, na falta dela, a maior vista no Strava. */
+  /** FC máxima estimada pelo histórico do Strava (null = poucas corridas com FC). */
   maxHr: number | null;
 }
 
@@ -61,7 +62,7 @@ export function buildPlan(s: PlanInputs, extra: HealthInput[] = [], today: ISODa
 const EXEC_COLS = 'id,executed_on,source,name,sport,distance_m,duration_s,avg_pace_s_km,avg_hr,max_hr,calories';
 const isRun = (sport: string | null) => /run/i.test(sport ?? '');
 
-export type BaseData = Pick<AppState, 'today' | 'races' | 'nextRace' | 'prs' | 'health' | 'skipped' | 'settings' | 'fitness' | 'strava'> & { execs120: ExecRow[]; maxHr: { value: number | null; observed: number | null } };
+export type BaseData = Pick<AppState, 'today' | 'races' | 'nextRace' | 'prs' | 'health' | 'skipped' | 'settings' | 'fitness' | 'strava'> & { execs120: ExecRow[]; maxHr: number | null };
 
 /** Só leituras do banco (sem montar plano): o que as telas simples (Provas, Perfil, Saúde) precisam. */
 export async function loadData(): Promise<BaseData> {
@@ -82,10 +83,8 @@ export async function loadData(): Promise<BaseData> {
 
   const raceRows = (races.data ?? []) as RaceRow[];
   const execs120 = (execs.data ?? []) as ExecRow[];
-  const observed = execs120.reduce((m, e) => Math.max(m, e.max_hr ?? 0), 0) || null;
-  const typed = (settings.data as SettingsRow | null)?.max_hr ?? null;
   return {
-    today, races: raceRows, execs120, maxHr: { value: typed ?? observed, observed },
+    today, races: raceRows, execs120, maxHr: estimateMaxHr(execs120),
     nextRace: raceRows.find((r) => r.priority === 'A') ?? raceRows[0] ?? null,
     prs: (prs.data ?? []) as PrRow[],
     health: (health.data ?? []) as HealthEventRow[],
@@ -110,11 +109,11 @@ export async function loadState(): Promise<AppState> {
   const autoSkipped = substituted(weekPlan, actual, execs120, today);
   const zones = base.prs.length ? zonesFrom(referencePace5k(base.prs.map((p) => ({ distanceM: p.distance_m, timeSeconds: p.time_seconds })))) : null;
   // um plano recalculado desde 2 semanas atrás, só para comparar com o que foi feito
-  const trend = weekTrend({ past: buildPlan(base, [], addDays(weekStart, -14)).days, execs: execs120, zones, maxHr: maxHr.value, today, handled: autoSkipped.concat(base.skipped.map((k) => ({ date: k.skipped_on, type: k.workout_type as WorkoutType }))) });
+  const trend = weekTrend({ past: buildPlan(base, [], addDays(weekStart, -14)).days, execs: execs120, zones, maxHr, today, handled: autoSkipped.concat(base.skipped.map((k) => ({ date: k.skipped_on, type: k.workout_type as WorkoutType }))) });
   const withActual = { ...base, actual, autoSkipped, trend };
   return {
     ...withActual,
-    maxHr: maxHr.value,
+    maxHr,
     execs: execs120.slice(0, 10),
     weekExecs: execs120.filter((e) => e.executed_on >= weekStart),
     plan: buildPlan(withActual),

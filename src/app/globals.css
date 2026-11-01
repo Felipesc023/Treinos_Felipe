@@ -6,6 +6,9 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* iOS dá zoom ao focar campos com fonte menor que 16px */
+input, select, textarea { font-size: 16px; }
+
 body { @apply bg-bg font-sans text-ink antialiased; -webkit-tap-highlight-color: transparent; }
 a { @apply text-accent2; }
 :focus-visible { @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg; }
@@ -25,7 +28,7 @@ a { @apply text-accent2; }
   .btn { @apply inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[14px] bg-ink px-4 text-[15px] font-bold text-white; }
   .btn-ghost { @apply inline-flex min-h-[44px] items-center justify-center rounded-xl border border-line2 bg-white px-4 text-sm font-semibold text-ink; }
   .btn-outline { @apply inline-flex min-h-[56px] items-center justify-center gap-2.5 rounded-2xl border-2 border-ink bg-white px-4 text-base font-bold text-ink; }
-  .input { @apply h-11 w-full rounded-[10px] border border-line2 bg-white px-3 text-[15px] text-ink transition-colors duration-150; }
+  .input { @apply h-11 w-full rounded-[10px] border border-line2 bg-white px-3 text-base text-ink transition-colors duration-150; }
   .input:focus { @apply border-ink; }
   /* chips de escolha (radio escondido + rótulo): selecionado = fundo escuro */
   .chip { @apply flex min-h-[44px] cursor-pointer items-center justify-center rounded-[10px] border border-line2 bg-white text-sm font-semibold text-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-accent; }

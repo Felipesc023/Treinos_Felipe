@@ -36,10 +36,6 @@ export default async function Perfil({ searchParams }: { searchParams: Promise<{
             <select name="gym" defaultValue={s.settings.gym_per_week} className="input">{[0, 1, 2].map((n) => <option key={n} value={n}>{n}</option>)}</select>
           </label>
         </div>
-        <label className="flex flex-col gap-1.5 text-xs font-semibold text-muted">FC máxima (opcional)
-          <input name="max_hr" type="number" inputMode="numeric" min={120} max={230} defaultValue={s.settings.max_hr ?? ''} placeholder={s.maxHr.observed ? String(s.maxHr.observed) : 'bpm'} className="input" />
-          <span className="font-normal leading-snug">Se ficar vazio, uso o maior valor visto no Strava{s.maxHr.observed ? ` (${s.maxHr.observed} bpm)` : ''}. Serve para avisar quando um treino leve sai forte demais.</span>
-        </label>
         <fieldset className="m-0 border-0 p-0">
           <legend className="mb-2 p-0 text-xs font-semibold text-muted">Dias de descanso</legend>
           <div className="grid grid-cols-7 gap-1">
@@ -90,6 +86,7 @@ export default async function Perfil({ searchParams }: { searchParams: Promise<{
           <span className={`size-2 shrink-0 rounded-full ${s.strava?.status === 'ativa' ? 'bg-ok' : 'bg-line2'}`} aria-hidden />
           {s.strava ? `Status: ${s.strava.status}${s.strava.lastSyncedAt ? ` · última sincronização ${new Date(s.strava.lastSyncedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}` : 'Desconectada. Treinos do Apple Watch chegam via Strava.'}
         </p>
+        {s.maxHr && <p className="m-0 text-xs leading-snug text-muted">FC máxima estimada pelo seu histórico: <b className="text-ink">{s.maxHr} bpm</b>. Serve para avisar quando um treino leve sai forte demais.</p>}
         <a href="/api/strava/connect" className="btn-ghost w-full no-underline">{s.strava ? 'Reconectar' : 'Conectar Strava'}</a>
         {s.strava?.status === 'ativa' && <form action={syncStrava}><Submit className="btn-ghost w-full" pendingText="Importando…">Importar histórico completo</Submit></form>}
       </Section>

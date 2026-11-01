@@ -21,4 +21,4 @@ export interface HealthEventRow {
   status: 'ativo' | 'resolvido';
 }
 export interface SkippedRow { id: string; skipped_on: string; workout_type: string; reason: 'sem_tempo' | 'dor' | 'doenca' }
-export interface SettingsRow { runs_per_week: number; gym_per_week: number; rest_days: number[]; max_hr?: number | null }
+export interface SettingsRow { runs_per_week: number; gym_per_week: number; rest_days: number[] }
