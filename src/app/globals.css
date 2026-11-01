@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-bg text-ink antialiased; }
+.card { @apply rounded-card border border-line bg-surface p-4; }
+.label { @apply text-[11px] uppercase tracking-widest text-faint; }
+.btn { @apply inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gold px-4 font-medium text-bg; }
+.btn-ghost { @apply inline-flex min-h-[44px] items-center justify-center rounded-xl border border-line px-4 text-ink; }
+.input { @apply min-h-[44px] w-full rounded-xl border border-line bg-alt px-3 text-ink; }

@@ -105,3 +105,11 @@ export function assessGoal(
   return { level: 'inviavel', neededPct: needed, allowedPct: allowed,
     message: `Meta exige ${pct(needed)} de melhora; no tempo disponível o plano comporta cerca de ${pct(allowed)}. Sugestão: correr para terminar, com largada conservadora.` };
 }
+
+/** "mm:ss" ou "h:mm:ss" → segundos (null se inválido). */
+export function parseTime(s: string): number | null {
+  const p = s.trim().split(':').map(Number);
+  if (p.length < 2 || p.length > 3 || p.some((n) => !Number.isInteger(n) || n < 0)) return null;
+  const sec = p.length === 3 ? p[0]! * 3600 + p[1]! * 60 + p[2]! : p[0]! * 60 + p[1]!;
+  return sec > 0 ? sec : null;
+}

@@ -55,3 +55,12 @@ describe('ritmos e metas', () => {
     });
   });
 });
+
+describe('parseTime', () => {
+  it('lê mm:ss e h:mm:ss; rejeita lixo', async () => {
+    const { parseTime } = await import('../paces');
+    expect(parseTime('22:30')).toBe(1350);
+    expect(parseTime('1:45:00')).toBe(6300);
+    for (const bad of ['', 'abc', '22', '0:00', '-1:30', '1:2:3:4', '22:3.5']) expect(parseTime(bad)).toBeNull();
+  });
+});
