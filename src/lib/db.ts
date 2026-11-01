@@ -1,9 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from './env';
 
 /** Só no servidor: usa a service role (RLS bloqueia qualquer outro acesso). */
+let client: SupabaseClient | undefined;
 export const db = () =>
-  createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
+  (client ??= createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } }));
 
 export interface RaceRow {
   id: string; name: string; race_date: string; distance_m: number;

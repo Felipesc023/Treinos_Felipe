@@ -23,13 +23,14 @@ npm run dev         # http://localhost:3000
    ```bash
    curl -X POST https://www.strava.com/api/v3/push_subscriptions      -F client_id=ID -F client_secret=SECRET      -F callback_url=https://SEU-SITE/api/strava/webhook -F verify_token=SEU_STRAVA_VERIFY_TOKEN
    ```
-5. **Deploy (Vercel):** importe o repositório do GitHub e cadastre as mesmas variáveis (`APP_URL` = URL do site).
+5. **Deploy (Vercel):** importe o repositório do GitHub e cadastre as mesmas variáveis (`APP_URL` = URL do site, sem barra no final). **`APP_PIN` e `SESSION_SECRET` são obrigatórios.** Depois, mudou variável: Redeploy.
+6. **iPhone:** no Safari, Compartilhar → Adicionar à Tela de Início (manifesto e ícones em `public/` e `src/app/`).
 
 ## O site
 
 Layout "Hybrid Run — MVP" (tema claro, laranja de destaque, Barlow Condensed + Inter servidas localmente). Telas: **Hoje** (treino do dia com passos e ritmos, semana, "fiz"/"não deu", avaliação do feito) · **Calendário** (faixa de fases, tipos por dia, treino planejado × feito com voltas do Strava) · **Provas** · **Perfil** (treinos por semana, dias de descanso, recordes de qualquer distância, Strava) · **Saúde** (afastamento/dor com parte do corpo; a proposta mostra o que muda antes de gravar).
 
-O plano é calculado na hora (`src/lib/plan.ts`) a partir da prova A (ou, sem prova, em modo evolução), dos recordes, do que você já corre no Strava e dos eventos de saúde. O treinador (`src/lib/planner/coach.ts`) varia longão, tiros e academia de semana em semana. Sem PIN: com `APP_PIN` vazio o app abre direto.
+O plano é calculado na hora (`src/lib/plan.ts`) a partir da prova A (ou, sem prova, em modo evolução), dos recordes, do que você já corre no Strava e dos eventos de saúde. O treinador (`src/lib/planner/coach.ts`) varia longão, tiros e academia de semana em semana. O PIN é obrigatório em produção: sem `APP_PIN`/`SESSION_SECRET` o servidor responde 503 (só em `npm run dev` o app abre sem senha).
 
 ## O que já existe (v0.1 — motor, parte 1)
 
@@ -51,7 +52,7 @@ Os testes reproduzem cenários reais: futebol no sábado (longão descartado), p
 - Dias disponíveis por dia da semana além do descanso, eventos externos (futebol) editáveis.
 - Planos versionados com histórico (a proposta compara o plano com e sem o evento, sem guardar versões).
 - Webhook do Strava em tempo real (precisa do site publicado); localmente a sincronização roda ao abrir o app, no máximo a cada 15 min.
-- PWA/offline.
+- Modo offline (o app abre em tela cheia pelo iPhone, mas precisa de internet).
 
 ## Segurança
 

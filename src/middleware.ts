@@ -5,10 +5,14 @@ const PUBLIC = ['/login', '/api/strava/webhook'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (!process.env.APP_PIN) return NextResponse.next(); // sem APP_PIN = sem senha
   if (PUBLIC.some((p) => pathname === p)) return NextResponse.next();
-  const ok = await verifySession(req.cookies.get(COOKIE)?.value, process.env.SESSION_SECRET ?? '');
-  if (ok) return NextResponse.next();
+  const secret = process.env.SESSION_SECRET;
+  if (!process.env.APP_PIN || !secret) {
+    // Sem PIN o app abre direto: serve só para desenvolver. Em produção, esquecer a variável não pode expor os dados.
+    if (process.env.NODE_ENV !== 'production') return NextResponse.next();
+    return new NextResponse('Servidor sem APP_PIN/SESSION_SECRET configurados.', { status: 503 });
+  }
+  if (await verifySession(req.cookies.get(COOKIE)?.value, secret)) return NextResponse.next();
   return NextResponse.redirect(new URL('/login', req.url));
 }
 

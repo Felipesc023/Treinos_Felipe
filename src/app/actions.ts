@@ -121,6 +121,7 @@ const otherSchema = z.object({
 /** "Fiz outra coisa": o treino planejado conta como não feito (o plano se reencaixa) e a atividade entra na carga dos próximos dias. */
 export async function didOther(form: FormData) {
   const o = otherSchema.parse(Object.fromEntries(form));
+  if (o.date > todayISO()) throw new Error('Não dá para registrar um dia que ainda não chegou.');
   const sb = db();
   if (o.type !== 'descanso') {
     const { error } = await sb.from('skipped_workouts')
@@ -167,6 +168,7 @@ export async function saveSettings(form: FormData) {
 /** Marca um treino planejado como feito à mão (útil na academia, que o Strava não traz). Idempotente. */
 export async function markDone(form: FormData) {
   const s = skipSchema.pick({ date: true, type: true }).parse(Object.fromEntries(form));
+  if (s.date > todayISO()) throw new Error('Não dá para registrar um dia que ainda não chegou.');
   const gym = s.type.startsWith('academia');
   const { error } = await db().from('workout_executions').upsert(
     { executed_on: s.date, source: 'manual', external_id: `${s.date}-${s.type}`, name: gym ? 'Academia' : 'Corrida', sport: gym ? 'WeightTraining' : 'Run' },

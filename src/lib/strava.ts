@@ -5,8 +5,9 @@ import { stravaPrs, type EffortRow } from './prs';
 
 const API = 'https://www.strava.com/api/v3';
 
-export const authorizeUrl = () =>
+export const authorizeUrl = (state: string) =>
   'https://www.strava.com/oauth/authorize?' + new URLSearchParams({
+    state,
     client_id: env('STRAVA_CLIENT_ID'),
     redirect_uri: `${env('APP_URL')}/api/strava/callback`,
     response_type: 'code',
@@ -156,11 +157,23 @@ export async function backfill(after = 0, maxEfforts = 90) {
 
 /** Sync automático ao abrir o app: incremental, no máx. a cada 15 min. Sem webhook (precisa de URL pública). */
 export async function syncIfStale() {
-  const { data } = await db().from('integrations').select('status,last_synced_at').eq('provider', 'strava').maybeSingle();
+  const sb = db();
+  const { data } = await sb.from('integrations').select('status,last_synced_at').eq('provider', 'strava').maybeSingle();
   if (!data || data.status !== 'ativa') return;
-  const last = data.last_synced_at ? new Date(data.last_synced_at).getTime() : 0;
+  const prev: string | null = data.last_synced_at;
+  const last = prev ? new Date(prev).getTime() : 0;
   if (Date.now() - last < 15 * 60_000) return;
-  await backfill(last ? Math.floor(last / 1000) - 86_400 : 0, 15); // lote pequeno: não travar a abertura da tela
+  // reserva a vez: abas e pré-carregamentos simultâneos não disparam a mesma sincronização várias vezes
+  const claim = sb.from('integrations').update({ last_synced_at: new Date().toISOString() }).eq('provider', 'strava');
+  const { data: won } = await (prev ? claim.eq('last_synced_at', prev) : claim.is('last_synced_at', null)).select('provider');
+  if (!won?.length) return;
+  try {
+    await backfill(last ? Math.floor(last / 1000) - 86_400 : 0, 15); // lote pequeno: não travar a abertura da tela
+  } catch (e) {
+    // devolve o marcador: senão a próxima tentativa partiria de uma data que já passou sem importar nada
+    await sb.from('integrations').update({ last_synced_at: prev }).eq('provider', 'strava');
+    throw e;
+  }
 }
 
 export interface WebhookEvent {
@@ -177,6 +190,12 @@ export async function handleEvent(ev: WebhookEvent) {
   const finish = (status: 'processado' | 'erro', error?: string) =>
     sb.from('ingestion_events').update({ status, error: error ?? null, processed_at: new Date().toISOString() }).eq('id', data?.id ?? '');
   try {
+    // o webhook não é assinado: só vale evento do próprio atleta conectado
+    const { data: me } = await sb.from('integrations').select('external_athlete_id').eq('provider', 'strava').maybeSingle();
+    if (!me || String(ev.owner_id) !== me.external_athlete_id) {
+      await finish('erro', 'owner_id diferente do atleta conectado');
+      return;
+    }
     if (ev.object_type === 'athlete' && ev.updates?.authorized === 'false') {
       await sb.from('integrations').update({ status: 'revogada' }).eq('provider', 'strava');
     } else if (ev.object_type === 'activity' && ev.aspect_type === 'delete') {

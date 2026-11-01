@@ -38,7 +38,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const cells: (string | null)[] = [...Array<null>(weekdayOf(first)).fill(null), ...monthDays];
 
   // tudo numa ida só ao banco: o mês, o dia aberto e o estado geral não dependem uns dos outros
-  const [s, { data: ex }, { data: full }, { data: hist }, { data: sk }] = await Promise.all([
+  const [s, exR, fullR, histR, skR] = await Promise.all([
     loadState(),
     db().from('workout_executions').select('id,executed_on,source,name,sport,distance_m,duration_s,avg_pace_s_km,avg_hr,max_hr,calories').gte('executed_on', first).lt('executed_on', nextMonthFirst).order('executed_on'),
     // voltas (JSON pesado) só do dia aberto
@@ -47,6 +47,8 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
     db().from('planned_history').select('*').gte('date', first).lt('date', nextMonthFirst),
     db().from('skipped_workouts').select('skipped_on,workout_type').gte('skipped_on', first).lt('skipped_on', nextMonthFirst),
   ]);
+  for (const r of [exR, fullR, histR, skR]) if (r.error) throw new Error(r.error.message);
+  const { data: ex } = exR, { data: full } = fullR, { data: hist } = histR, { data: sk } = skR;
   const followed = new Map(((hist ?? []) as HistoryRow[]).map((h) => [h.date, historyDay(h)]));
   const done = new Map<string, ExecRow[]>();
   for (const e of (ex ?? []) as ExecRow[]) done.set(e.executed_on, [...(done.get(e.executed_on) ?? []), e]);

@@ -9,6 +9,8 @@ import { addPr, deletePr, logout, saveSettings, syncStrava } from '../../actions
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export const dynamic = 'force-dynamic';
+/** "Importar histórico completo" roda como ação desta página e pode passar dos 10 s padrão. */
+export const maxDuration = 60;
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="card flex flex-col gap-3">
