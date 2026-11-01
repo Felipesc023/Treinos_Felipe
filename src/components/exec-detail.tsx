@@ -1,3 +1,4 @@
+import { RemoveExec } from '@/components/forms';
 import type { ExecRow } from '@/lib/db';
 import { formatPace, formatTime } from '@/lib/planner';
 
@@ -81,6 +82,7 @@ export function ExecDetail({ e }: { e: ExecRow }) {
       ) : null}
       {laps.length > 1 ? <Parts title="Parciais por volta" first="Volta" parts={laps} />
         : splits.length > 1 ? <Parts title="Parciais por km" first="Km" parts={splits} /> : null}
+      {e.source === 'manual' && <RemoveExec id={e.id} />}
     </div>
   );
 }

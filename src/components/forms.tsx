@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useFormStatus } from 'react-dom';
-import { clearDay, didOther, markDone, skipWorkout } from '@/app/actions';
+import { clearDay, didOther, markDone, removeExec, skipWorkout } from '@/app/actions';
 
 /** Botão de envio: desabilita e mostra "…" enquanto a ação roda (evita duplo toque). */
 export function Submit({ className, children, pendingText = 'Salvando…' }: { className: string; children: React.ReactNode; pendingText?: string }) {
@@ -63,7 +63,7 @@ function OtherForm({ date, type }: { date: string; type: string }) {
   return (
     <details className="group rounded-xl border border-line2 bg-white">
       <summary className="press flex min-h-[44px] cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold">
-        Fiz outra coisa
+        Fiz outra coisa (pode adicionar mais de uma)
         <span className="text-muted transition-transform duration-200 group-open:rotate-180" aria-hidden>⌄</span>
       </summary>
       <form action={didOther} className="flex flex-col gap-2 border-t border-soft p-3">
@@ -77,7 +77,7 @@ function OtherForm({ date, type }: { date: string; type: string }) {
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted" aria-hidden>min</span>
           </label>
         </div>
-        <Submit className="btn-ghost w-full">Salvar e ajustar o plano</Submit>
+        <Submit className="btn-ghost w-full">Adicionar e ajustar o plano</Submit>
       </form>
     </details>
   );
@@ -87,10 +87,13 @@ function OtherForm({ date, type }: { date: string; type: string }) {
 export function DayActions({ date, type, state, canUndo }: { date: string; type: string; state: string; canUndo: boolean }) {
   if (canUndo) {
     return (
-      <form action={clearDay}>
-        <input type="hidden" name="date" value={date} /><input type="hidden" name="type" value={type} />
-        <Submit className="btn-ghost w-full" pendingText="Desfazendo…">Desfazer o que marquei</Submit>
-      </form>
+      <div className="flex flex-col gap-2">
+        <form action={clearDay}>
+          <input type="hidden" name="date" value={date} /><input type="hidden" name="type" value={type} />
+          <Submit className="btn-ghost w-full" pendingText="Desfazendo…">Desfazer tudo que marquei neste dia</Submit>
+        </form>
+        <OtherForm date={date} type={type} />
+      </div>
     );
   }
   if (type === 'descanso') return <OtherForm date={date} type={type} />;
@@ -106,5 +109,15 @@ export function DayActions({ date, type, state, canUndo }: { date: string; type:
       </div>
       <OtherForm date={date} type={type} />
     </div>
+  );
+}
+
+/** Apaga um registro feito à mão (cada atividade do dia pode ser removida separadamente). */
+export function RemoveExec({ id }: { id: string }) {
+  return (
+    <form action={removeExec}>
+      <input type="hidden" name="id" value={id} />
+      <DangerButton confirmText="Remover este registro? O que veio do Strava não é afetado.">Remover este registro</DangerButton>
+    </form>
   );
 }

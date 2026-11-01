@@ -28,7 +28,7 @@ describe('substituted', () => {
     const key = base.days.find((d) => ['intervalado', 'tempo', 'longao'].includes(d.type))!;
     const actual = offPlanLoad([{ executed_on: key.date, sport: 'Soccer', duration_s: 3000 }], key.date, 0);
     expect(substituted(base.days, actual, [{ executed_on: key.date, sport: 'Soccer', duration_s: 3000 }], '2026-12-31'))
-      .toEqual([{ date: key.date, type: key.type }]);
+      .toEqual([{ date: key.date, type: key.type, replaced: true }]);
   });
 });
 
@@ -42,5 +42,17 @@ describe('generatePlan com atividade fora do plano', () => {
     const actual = offPlanLoad([{ executed_on: today, sport: 'Soccer', duration_s: 3000 }], today);
     const after = generatePlan({ today, prs, actual });
     expect(after.days.some((d) => d.date === hard.date && d.intensity >= 4)).toBe(false);
+  });
+});
+
+describe('faltas × trocas no volume', () => {
+  const today = '2026-11-12';
+  const minutes = (p: ReturnType<typeof generatePlan>) => p.days.filter((d) => d.date <= '2026-11-21').reduce((n, d) => n + d.estMinutes, 0);
+  const skipped = (replaced: boolean) => ['2026-11-09', '2026-11-10', '2026-11-11'].map((date) => ({ date, type: 'leve' as const, ...(replaced && { replaced }) }));
+
+  it('3 treinos trocados por outra atividade não reduzem o volume; 3 faltas reduzem', () => {
+    const base = minutes(generatePlan({ today, prs }));
+    expect(minutes(generatePlan({ today, prs, skipped: skipped(true) }))).toBe(base);
+    expect(minutes(generatePlan({ today, prs, skipped: skipped(false) }))).toBeLessThan(base);
   });
 });

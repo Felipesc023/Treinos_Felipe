@@ -19,11 +19,14 @@ const br = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 
 export default async function Hoje() {
   // o último treino (com as voltas) vem na mesma ida ao banco que o resto: não depende do estado
-  const [s, { data: lastRow }] = await Promise.all([
+  const [s, { data: lastRows }] = await Promise.all([
     loadState(),
-    db().from('workout_executions').select('*').order('executed_on', { ascending: false }).limit(1).maybeSingle(),
+    db().from('workout_executions').select('*').order('executed_on', { ascending: false }).limit(6),
   ]);
-  const last = lastRow as ExecRow | null;
+  // todas as atividades do dia mais recente (corrida + futebol, dois treinos…), não só uma
+  const recent = (lastRows ?? []) as ExecRow[];
+  const lastDay = recent[0]?.executed_on;
+  const last = recent.filter((e) => e.executed_on === lastDay);
   const race = s.nextRace;
   const week = weekDates(weekStartSunday(s.today));
   const byDate = new Map<string, PlanDay>([...s.weekPlan, ...(s.plan?.days ?? [])].map((d) => [d.date, d]));
@@ -171,10 +174,10 @@ export default async function Hoje() {
         Estou com dor ou doente
       </Link>
 
-      {last && (
+      {last.length > 0 && (
         <section className="card flex flex-col gap-2">
-          <p className="label">Último treino · {br(last.executed_on)}</p>
-          <ExecDetail e={last} />
+          <p className="label">{last.length > 1 ? 'Últimos treinos' : 'Último treino'} · {br(last[0]!.executed_on)}</p>
+          {last.map((e) => <ExecDetail key={e.id} e={e} />)}
         </section>
       )}
     </>

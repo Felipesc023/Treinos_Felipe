@@ -24,7 +24,8 @@ export interface PlanResult { days: PlanDay[]; dropped: DroppedSession[]; phaseB
 
 /** `to` = último dia sem treinar (a retomada começa no dia seguinte). */
 export interface HealthInput { kind: 'afastamento' | 'dor'; from: ISODate; to: ISODate; mode: 'seguir_restrito' | 'parar'; region?: string }
-export interface SkippedInput { date: ISODate; type: WorkoutType }
+/** `replaced`: no lugar do treino o atleta fez outra coisa (já entra na carga); não conta como falta. */
+export interface SkippedInput { date: ISODate; type: WorkoutType; replaced?: boolean }
 
 /** Quantos dias de treinos anteriores o agendador precisa enxergar (maior janela das regras: perna ↔ corrida forte). */
 const CONTEXT_DAYS = 7;
@@ -154,7 +155,7 @@ export function generatePlan(opts: {
     }
     return best;
   };
-  const manyMissed = skipped.filter((x) => diffDays(today, x.date) >= 1 && diffDays(today, x.date) <= cfg.missedManyWindowDays).length
+  const manyMissed = skipped.filter((x) => !x.replaced && diffDays(today, x.date) >= 1 && diffDays(today, x.date) <= cfg.missedManyWindowDays).length
     >= cfg.missedManyThreshold;
 
   const warnings: string[] = [];

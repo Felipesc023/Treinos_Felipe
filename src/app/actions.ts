@@ -130,21 +130,29 @@ export async function didOther(form: FormData) {
   }
   const what = OTHER[o.kind];
   if (what) {
-    const { error } = await sb.from('workout_executions').upsert(
-      { executed_on: o.date, source: 'manual', external_id: `${o.date}-outro`, name: `Outra: ${what[0]}`, sport: what[1], duration_s: o.minutes * 60 },
-      { onConflict: 'source,external_id' },
+    // um registro novo a cada vez: dois jogos, ou corrida + bike, no mesmo dia ficam todos guardados
+    const { error } = await sb.from('workout_executions').insert(
+      { executed_on: o.date, source: 'manual', external_id: `${o.date}-outro-${crypto.randomUUID().slice(0, 8)}`, name: `Outra: ${what[0]}`, sport: what[1], duration_s: o.minutes * 60 },
     );
     if (error) throw new Error(error.message);
   }
   revalidatePath('/', 'layout');
 }
 
-/** Desfaz o que foi marcado à mão no dia ("fiz", "não fiz" ou "outra coisa"); o Strava não é tocado. */
+/** Desfaz tudo que foi marcado à mão no dia ("fiz", "não fiz" e todas as "outras coisas"); o Strava não é tocado. */
 export async function clearDay(form: FormData) {
   const s = otherSchema.pick({ date: true, type: true }).parse(Object.fromEntries(form));
   const sb = db();
   await sb.from('skipped_workouts').delete().eq('skipped_on', s.date).eq('workout_type', s.type);
-  await sb.from('workout_executions').delete().eq('source', 'manual').in('external_id', [`${s.date}-${s.type}`, `${s.date}-outro`]);
+  await sb.from('workout_executions').delete().eq('source', 'manual').eq('executed_on', s.date).or(`external_id.eq.${s.date}-${s.type},external_id.like.${s.date}-outro-*`);
+  revalidatePath('/', 'layout');
+}
+
+/** Remove um registro feito à mão (o Strava não é tocado). */
+export async function removeExec(form: FormData) {
+  const id = z.string().uuid().parse(form.get('id'));
+  const { error } = await db().from('workout_executions').delete().eq('id', id).eq('source', 'manual');
+  if (error) throw new Error(error.message);
   revalidatePath('/', 'layout');
 }
 

@@ -50,5 +50,5 @@ export function substituted(weekPlan: PlanDay[], actual: PlannedWorkout[], execs
   const other = new Set(actual.map((a) => a.date));
   return weekPlan
     .filter((p) => KEY_TYPES.includes(p.type) && p.date < today && !ran.has(p.date) && other.has(p.date))
-    .map((p) => ({ date: p.date, type: p.type }));
+    .map((p) => ({ date: p.date, type: p.type, replaced: true }));
 }

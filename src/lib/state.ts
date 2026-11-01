@@ -33,11 +33,13 @@ export interface AppState {
   autoSkipped: SkippedInput[];
   /** O que as últimas semanas dizem sobre as próximas (null = pouco dado ou afastado). */
   trend: Trend | null;
+  /** Dias com alguma atividade registrada (Strava ou à mão): um "não fiz" nesses dias foi troca, não falta. */
+  replacedDates: ReadonlySet<string>;
   /** FC máxima estimada pelo histórico do Strava (null = poucas corridas com FC). */
   maxHr: number | null;
 }
 
-type PlanInputs = Pick<AppState, 'today' | 'nextRace' | 'prs' | 'health' | 'skipped' | 'settings' | 'fitness'> & Partial<Pick<AppState, 'actual' | 'autoSkipped' | 'trend'>>;
+type PlanInputs = Pick<AppState, 'today' | 'nextRace' | 'prs' | 'health' | 'skipped' | 'settings' | 'fitness'> & Partial<Pick<AppState, 'actual' | 'autoSkipped' | 'trend' | 'replacedDates'>>;
 
 export const DEFAULT_SETTINGS_ROW: SettingsRow = { runs_per_week: DEFAULT_SETTINGS.runsPerWeek, gym_per_week: DEFAULT_SETTINGS.gymPerWeek, rest_days: [0, 3] };
 
@@ -49,7 +51,7 @@ export function buildPlan(s: PlanInputs, extra: HealthInput[] = [], today: ISODa
     ...(r ? { race: { name: r.name, date: r.race_date, distanceM: r.distance_m } } : {}),
     prs: s.prs.map((p) => ({ distanceM: p.distance_m, timeSeconds: p.time_seconds })),
     health: [...s.health.map((e) => toHealthInput(e, s.today)), ...extra],
-    skipped: [...s.skipped.map((k) => ({ date: k.skipped_on, type: k.workout_type as WorkoutType })), ...(s.autoSkipped ?? [])],
+    skipped: [...s.skipped.map((k) => ({ date: k.skipped_on, type: k.workout_type as WorkoutType, ...(s.replacedDates?.has(k.skipped_on) && { replaced: true }) })), ...(s.autoSkipped ?? [])],
     // só o plano "de hoje" enxerga o que foi feito; os planos de dias passados (comparação) ficam como eram
     ...(today === s.today && s.actual?.length ? { actual: s.actual } : {}),
     fitness: s.fitness,
@@ -110,7 +112,8 @@ export async function loadState(): Promise<AppState> {
   const zones = base.prs.length ? zonesFrom(referencePace5k(base.prs.map((p) => ({ distanceM: p.distance_m, timeSeconds: p.time_seconds })))) : null;
   // um plano recalculado desde 2 semanas atrás, só para comparar com o que foi feito
   const trend = weekTrend({ past: buildPlan(base, [], addDays(weekStart, -14)).days, execs: execs120, zones, maxHr, today, handled: autoSkipped.concat(base.skipped.map((k) => ({ date: k.skipped_on, type: k.workout_type as WorkoutType }))) });
-  const withActual = { ...base, actual, autoSkipped, trend };
+  const replacedDates = new Set(execs120.map((e) => e.executed_on));
+  const withActual = { ...base, actual, autoSkipped, trend, replacedDates };
   return {
     ...withActual,
     maxHr,
