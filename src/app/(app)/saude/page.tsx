@@ -59,11 +59,11 @@ export default async function Saude() {
         <p className="m-0 -mt-2 text-xs text-muted">Doença, cirurgia… Os treinos pausam e, na volta, entra uma retomada gradual.</p>
         <input type="hidden" name="kind" value="afastamento" />
         <input type="hidden" name="mode" value="parar" />
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-1.5 text-xs font-semibold text-muted">Início
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-muted">Início
             <input name="from" type="date" defaultValue={s.today} className="input" required />
           </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold text-muted">Volta prevista
+          <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-muted">Volta prevista
             <input name="to" type="date" className="input" required />
           </label>
         </div>

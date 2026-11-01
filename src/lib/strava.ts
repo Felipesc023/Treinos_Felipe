@@ -63,6 +63,7 @@ interface Activity {
   laps?: { distance: number; moving_time: number; average_heartrate?: number }[];
   best_efforts?: { name: string; elapsed_time: number }[];
   calories?: number; // só no detalhe da atividade, não na lista resumida
+  splits_metric?: { distance: number; moving_time: number; average_heartrate?: number }[];
 }
 
 async function fetchActivity(id: string, token?: string): Promise<Activity> {
@@ -70,6 +71,10 @@ async function fetchActivity(id: string, token?: string): Promise<Activity> {
   if (!r.ok) throw new Error(`Strava atividade ${r.status}`);
   return r.json() as Promise<Activity>;
 }
+
+const toSplits = (a: Activity) => (a.splits_metric ?? []).map(({ distance, moving_time, average_heartrate }) => ({
+  distance, moving_time, ...(average_heartrate && { average_heartrate }),
+}));
 
 const toRow = (a: Activity) => {
   const km = a.distance / 1000;
@@ -86,6 +91,7 @@ const toRow = (a: Activity) => {
     max_hr: a.max_heartrate ? Math.round(a.max_heartrate) : null,
     ...(a.laps && { laps: a.laps }), // a lista resumida não traz laps nem calorias; não sobrescreve os que já existem
     ...(a.calories !== undefined && { calories: Math.round(a.calories) }),
+    ...(a.splits_metric && { splits: toSplits(a) }),
   };
 };
 
@@ -95,11 +101,11 @@ export async function importActivity(id: string) {
   await db().from('integrations').update({ last_synced_at: new Date().toISOString() }).eq('provider', 'strava');
 }
 
-/** Busca o detalhe (calorias, e best_efforts + laps nas corridas) das atividades ainda sem ele: 1 chamada cada, então em lotes (limite do Strava: 100/15 min). */
+/** Busca o detalhe (calorias, e best_efforts + laps + parciais por km nas corridas) das atividades ainda sem ele: 1 chamada cada, então em lotes (limite do Strava: 100/15 min). */
 async function loadEfforts(max: number) {
   const sb = db();
   const { data } = await sb.from('workout_executions').select('id,external_id,sport')
-    .eq('source', 'strava').is('calories', null)
+    .eq('source', 'strava').or('calories.is.null,and(sport.ilike.*run*,splits.is.null)')
     .order('executed_on', { ascending: false }).limit(max);
   const rows = data ?? [];
   if (!rows.length) return;
@@ -109,7 +115,7 @@ async function loadEfforts(max: number) {
       const a = await fetchActivity(r.external_id, token);
       await sb.from('workout_executions').update({
         calories: Math.round(a.calories ?? 0),
-        ...(/run/i.test(r.sport ?? '') && { best_efforts: (a.best_efforts ?? []).map(({ name, elapsed_time }) => ({ name, elapsed_time })) }),
+        ...(/run/i.test(r.sport ?? '') && { best_efforts: (a.best_efforts ?? []).map(({ name, elapsed_time }) => ({ name, elapsed_time })), splits: toSplits(a) }),
         ...(a.laps && { laps: a.laps }),
       }).eq('id', r.id);
     }));

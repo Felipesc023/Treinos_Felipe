@@ -13,7 +13,7 @@ export interface PrRow { id: string; distance_m: number; time_seconds: number; a
 export interface ExecRow {
   id: string; executed_on: string; source: string; name: string | null; sport: string | null;
   distance_m: number | null; duration_s: number | null; avg_pace_s_km: number | null; avg_hr: number | null;
-  max_hr: number | null; laps: unknown; calories?: number | null;
+  max_hr: number | null; laps: unknown; splits?: unknown; calories?: number | null;
 }
 export interface HealthEventRow {
   id: string; kind: 'afastamento' | 'dor'; body_region: string | null; severity: number | null;

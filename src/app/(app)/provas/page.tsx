@@ -71,13 +71,13 @@ export default async function Provas() {
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 p-0 text-xs font-semibold text-muted">Distância</legend>
           <Chips name="distance_m" cols={4} def="5000" options={[['5000', '5 km'], ['10000', '10 km'], ['21097', 'Meia'], ['42195', 'Maratona']]} />
-          <input name="km_custom" type="number" inputMode="decimal" step="0.1" min="0.4" max="200" placeholder="Outra distância (km) — vale no lugar da escolha acima" className="input" />
+          <input name="km_custom" type="number" inputMode="decimal" step="0.1" min="0.4" max="200" placeholder="Outra distância (km)" className="input" />
         </fieldset>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-1.5 text-xs font-semibold text-muted">Data
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-muted">Data
             <input name="race_date" type="date" className="input" required />
           </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold text-muted">Tempo-alvo
+          <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-muted">Tempo-alvo
             <input name="goal_time" placeholder="hh:mm:ss" className="input" />
           </label>
         </div>

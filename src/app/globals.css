@@ -8,6 +8,8 @@
 
 /* iOS dá zoom ao focar campos com fonte menor que 16px */
 input, select, textarea { font-size: 16px; }
+/* o iOS dá largura mínima própria ao campo de data e ele vaza da grade */
+input[type='date'] { -webkit-appearance: none; appearance: none; min-width: 0; text-align: left; }
 
 body { @apply bg-bg font-sans text-ink antialiased; -webkit-tap-highlight-color: transparent; }
 a { @apply text-accent2; }
