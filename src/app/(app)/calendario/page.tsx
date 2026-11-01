@@ -189,6 +189,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
 
         {sel <= s.today && !away && (
           <DayActions date={sel} type={selSt === 'livre' ? 'descanso' : selDay!.type} state={selSt}
+            hasStrava={(done.get(sel) ?? []).some((e) => e.source === 'strava')}
             canUndo={selSt === 'nao_fiz' || selSt === 'outra' || manualOn} />
         )}
 

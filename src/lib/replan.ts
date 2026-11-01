@@ -18,12 +18,12 @@ export function diffPlans(before: PlanDay[], after: PlanDay[]) {
 
 const RUN_TYPES = ['leve', 'longao', 'intervalado', 'tempo', 'ativacao'];
 
-/** Treinos de corrida planejados (já filtrados para o dia analisado) sem corrida no Strava e sem "não deu". */
+/** Treinos de corrida planejados (já filtrados para o dia analisado) sem corrida nem outra atividade (fora musculação) no dia e sem "não deu". */
 export function missedCandidates(o: {
   planned: PlanDay[]; execs: { executed_on: string; sport: string | null }[]; skipped: SkippedInput[];
 }): PlanDay[] {
   return o.planned.filter((p) =>
     RUN_TYPES.includes(p.type)
-    && !o.execs.some((e) => e.executed_on === p.date && /run/i.test(e.sport ?? ''))
+    && !o.execs.some((e) => e.executed_on === p.date && !/weight|workout/i.test(e.sport ?? ''))
     && !o.skipped.some((s) => s.date === p.date && s.type === p.type));
 }

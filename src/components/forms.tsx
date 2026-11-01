@@ -84,14 +84,21 @@ function OtherForm({ date, type }: { date: string; type: string }) {
 }
 
 /** Os três jeitos de registrar o dia (fiz, não fiz, fiz outra coisa) e o "desfazer" quando já foi marcado à mão. */
-export function DayActions({ date, type, state, canUndo }: { date: string; type: string; state: string; canUndo: boolean }) {
+export function DayActions({ date, type, state, canUndo, hasStrava = false }: {
+  date: string; type: string; state: string; canUndo: boolean; hasStrava?: boolean;
+}) {
+  const undo = (
+    <form action={clearDay}>
+      <input type="hidden" name="date" value={date} /><input type="hidden" name="type" value={type} />
+      <Submit className="btn-ghost w-full" pendingText="Desfazendo…">Desfazer tudo que marquei neste dia</Submit>
+    </form>
+  );
+  // o Strava já trouxe o que foi feito: nada para marcar nem acrescentar (só limpar o que ficou marcado à mão antes)
+  if (hasStrava) return canUndo ? undo : null;
   if (canUndo) {
     return (
       <div className="flex flex-col gap-2">
-        <form action={clearDay}>
-          <input type="hidden" name="date" value={date} /><input type="hidden" name="type" value={type} />
-          <Submit className="btn-ghost w-full" pendingText="Desfazendo…">Desfazer tudo que marquei neste dia</Submit>
-        </form>
+        {undo}
         <OtherForm date={date} type={type} />
       </div>
     );

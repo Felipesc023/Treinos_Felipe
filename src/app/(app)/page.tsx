@@ -129,6 +129,7 @@ export default async function Hoje() {
           {todaySt === 'feito' && ev && <EvalNotes ev={ev} />}
           {todays.type !== 'prova' && (
             <DayActions date={todays.date} type={todays.type} state={todaySt}
+              hasStrava={s.weekExecs.some((e) => e.executed_on === todays.date && e.source === 'strava')}
               canUndo={todaySt === 'nao_fiz' || todaySt === 'outra' || s.weekExecs.some((e) => e.executed_on === todays.date && e.source === 'manual')} />
           )}
         </section>

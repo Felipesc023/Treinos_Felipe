@@ -28,6 +28,9 @@ describe('missedCandidates', () => {
   it('musculação não conta como corrida', () => {
     expect(missedCandidates({ planned, execs: [{ executed_on: '2026-11-03', sport: 'WeightTraining' }], skipped: [] })).toHaveLength(1);
   });
+  it('outra atividade do Strava no dia (futebol…) explica o dia: não pergunta', () => {
+    expect(missedCandidates({ planned, execs: [{ executed_on: '2026-11-03', sport: 'Soccer' }], skipped: [] })).toEqual([]);
+  });
   it('já marcado como "não deu" não reaparece', () => {
     expect(missedCandidates({ planned, execs: [], skipped: [{ date: '2026-11-03', type: 'tempo' }] })).toEqual([]);
   });
